@@ -33,13 +33,13 @@ for i in range(0, len(treaties)):
             current += " "
             current += country[i]
         
+        treaties[i]["with"] = ""
+
         #If a country match is found
         if(current in countries):
             treaties[i]["with"] = current
             print(title + " -> " + current + "\n")
             total += 1
-
-print(total)
 
 #Write the modified json to file
 with open('treaties_with_country.json', 'w') as out:  
