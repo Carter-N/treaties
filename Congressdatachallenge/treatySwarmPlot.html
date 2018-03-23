@@ -1,0 +1,149 @@
+<html>
+  <head>
+    <style>
+      body {
+       font: 14px sans-serif; 
+      }
+      
+      .axis path,
+      .axis line {
+        fill: none;
+        stroke: black;
+      }
+      
+      .axis path { stroke: none; }
+
+      .bubbles {
+        cursor: pointer;
+        opacity: 0.95;
+      }
+
+      #tooltip{
+        position: absolute;
+        background-color: white;
+        border: 1px solid #ccc;
+        padding: 10px;
+        border-radius: 5px;
+        display: none;
+        font-size: 12px;
+        -webkit-box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.25);
+        -moz-box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.25);
+        box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.25);
+      }
+
+      #tooltip strong{
+        font-size: 16px;
+      }
+
+      #tooltip span{
+        color: #999;
+      }
+    </style>
+  </head>
+  <body>
+     <script src="d3.v3.min.js" charset="utf-8"></script>
+     <script src="force-chart.js"></script>
+     <script>
+       var margin = { top: 10, left: 240, bottom: 30, right: 50 },
+           width = 960 - margin.left - margin.right,
+           height = 750 - margin.top - margin.bottom,
+           rad = 4;
+
+      var format = d3.time.format("%m/%d/%Y");
+       
+       var x = function(d) { return d["Date Received From President"]; },
+           y = function(d) { return d["Treaty Topic"]; },
+           area = 400;
+
+       var xScale = d3.time.scale()
+             .range([0, width]),
+
+           yScale = d3.scale.ordinal()
+             .rangeBands([height, 0]);
+          
+           colorScale = d3.scale.ordinal()
+            .range(["#9FA91F","#7F1734","#FBCCE7","#D2691E","#e31a1c","#6F4E37","#C4D8E2","#F2AC28","#34cadd","#002E63","#DE3163","#B87333","#AD6F69","#1f78b4","#FF3800","#FF7F50","#764C73","#FF4040","#f2c94e","#000000","#B31B1B","#00cc66","#8C92AC","#0000ff","#3B6B8F","#CACB37"]);
+       
+       var xValue = function(d) { return xScale(format.parse(x(d))); },
+           yValue = function(d) { return yScale(y(d)) + yScale.rangeBand()/2; };
+       
+       var xAxis = d3.svg.axis().scale(xScale).orient("bottom"),
+           yAxis = d3.svg.axis().scale(yScale).orient("left");
+       
+       var bubbleChart = d3.forceChart()
+        .size([width, height])
+        .x(xValue)
+        .y(yValue)
+        .r(rad)
+        .xGravity(3)    // make the x-position more accurate
+        .yGravity(2); // ...and the y-position more flexible
+
+       var tooltip = d3.select("body").append("div")
+                        .attr("id","tooltip");
+
+       var svg = d3.select("body").append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+          .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+       
+       d3.json("treaty.json", function(error, treaty) {
+         if (error) throw error;
+         
+        var allDomain = treaty.map(function(d) {return d["Treaty Topic"];} );
+
+        var yDomain = allDomain.filter(function(elem, index, self) {
+            return index === self.indexOf(elem);
+             })
+
+        var xDomain = d3.extent(treaty, function(d) { return format.parse(d["Date Received From President"]); })
+        yScale.domain(yDomain);
+        xScale.domain(xDomain);
+
+        colorScale.domain(yDomain);
+
+         // Draw axes
+         svg.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis);
+
+         svg.append("g")
+            .attr("class", "y axis")
+            .call(yAxis)
+          .selectAll(".tick line")
+            .attr("x2", width)
+            .attr("stroke-dasharray", "1, 2")
+            .style("stroke", "lightgrey");
+            
+         // Draw bubbles
+         svg.append("g").call(bubbleChart, treaty)
+            .attr("class", "bubbles")
+          .selectAll(".node").append("circle")
+            .attr("r", rad + "px")
+            .attr("fill", function(d) {return colorScale(d["Treaty Topic"]);})
+            .attr("stroke", "#f6f6f6")
+            .on("mouseover", function(d) {
+              d3.select(this)
+                .attr("r",rad*2+"px");
+
+                var html = "<strong>" + d["Title"] + "</strong><br/>" +
+                          "<span>Date Received From President: " + d["Date Received From President"]+ "</span><br/><br/>  Latest Senate Action: " +
+                          d["Latest Senate Action"]+ "<br/><span> Latest Senate Action Date: " +
+                          d["Latest Senate Action Date"] + "</span>";
+
+                tooltip.style("display", "inline-block")
+                        .style("left", (d3.event.pageX - 34) + "px")     
+                        .style("top", (d3.event.pageY +32) + "px")
+                        .html(html)
+                      })
+
+          .on("mouseout",function(){
+          d3.select(this).attr("r",rad+"px");
+          tooltip.style("display","none");
+        })
+            .on("click", function(d) {window.open(d["URL"]);});
+       });
+     </script>
+  </body>
+</html>
