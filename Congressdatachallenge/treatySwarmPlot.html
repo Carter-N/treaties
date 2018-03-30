@@ -38,22 +38,43 @@
       #tooltip span{
         color: #999;
       }
+
+
     </style>
+    <link rel="stylesheet" href="bootstrap.min.css" type="text/css" media="screen">
+    <link rel="stylesheet" href="bootstrap-combobox.css" type="text/css" media="screen">
   </head>
   <body>
-     <script src="d3.v3.min.js" charset="utf-8"></script>
-     <script src="force-chart.js"></script>
-     <script>
-       var margin = { top: 10, left: 240, bottom: 30, right: 50 },
-           width = 960 - margin.left - margin.right,
-           height = 750 - margin.top - margin.bottom,
-           rad = 4;
+    <div id="mediacontent">
+
+    <div class="form-group">            
+        <select id="searchBox" class="combobox input-large form-control" style="display: none;" onchange="searchEvent(this.value)">
+             <option value="" selected="selected">Find a country</option>
+        </select>
+    </div>
+    <div id="dataviz"></div>
+  </div>
+
+    <script src="jquery-3.3.1.min.js" charset="utf-8"></script>
+    <script src="bootstrap.min.js" charset="utf-8"></script>
+    <script src="bootstrap-combobox.js" charset="utf-8"></script>
+    <script src="d3.v3.min.js" charset="utf-8"></script>
+    <script src="force-chart.js"></script>
+    <script>
+
+      function resize() {
+       var width0 = d3.select("#dataviz").node().getBoundingClientRect().width,
+       margin = { top: width0*0.007, left: width0*0.25, bottom: width0*0.15, right: width0*0.03 },
+           width = d3.select("#dataviz").node().getBoundingClientRect().width- margin.left - margin.right,
+           height = d3.select("#dataviz").node().getBoundingClientRect().width*0.55- margin.top - margin.bottom,
+           rad = width*0.005,
+           yName = "Treaty Topic";
 
       var format = d3.time.format("%m/%d/%Y");
        
        var x = function(d) { return d["Date Received From President"]; },
-           y = function(d) { return d["Treaty Topic"]; },
-           area = 400;
+           y = function(d) { return d[yName]; },
+           area = width*0.5;
 
        var xScale = d3.time.scale()
              .range([0, width]),
@@ -62,7 +83,7 @@
              .rangeBands([height, 0]);
           
            colorScale = d3.scale.ordinal()
-            .range(["#9FA91F","#7F1734","#FBCCE7","#D2691E","#e31a1c","#6F4E37","#C4D8E2","#F2AC28","#34cadd","#002E63","#DE3163","#B87333","#AD6F69","#1f78b4","#FF3800","#FF7F50","#764C73","#FF4040","#f2c94e","#000000","#B31B1B","#00cc66","#8C92AC","#0000ff","#3B6B8F","#CACB37"]);
+            .range(["#01786F","#7F1734","#B768A2","#1fabb4","#e31a1c","#6F4E37","#299617","#F2AC28","#30BFBF","#002E63","#DE3163","#87FF2A","#FFDB00","#1f78b4","#299617","#2D5DA1","#84DE02","#FD5240","#4BC7CF","#000000","#B31B1B","#A6A6A6","#50BFE6","#0000ff","#2243B6","#9C51B6"]);
        
        var xValue = function(d) { return xScale(format.parse(x(d))); },
            yValue = function(d) { return yScale(y(d)) + yScale.rangeBand()/2; };
@@ -78,19 +99,19 @@
         .xGravity(3)    // make the x-position more accurate
         .yGravity(2); // ...and the y-position more flexible
 
-       var tooltip = d3.select("body").append("div")
+       var tooltip = d3.select("#dataviz").append("div")
                         .attr("id","tooltip");
 
-       var svg = d3.select("body").append("svg")
+       var svg = d3.select("#dataviz").append("svg")
           .attr("width", width + margin.left + margin.right)
           .attr("height", height + margin.top + margin.bottom)
         .append("g")
           .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
        
-       d3.json("treaty.json", function(error, treaty) {
+       d3.json("treaties_with_countries.json", function(error, treaty) {
          if (error) throw error;
          
-        var allDomain = treaty.map(function(d) {return d["Treaty Topic"];} );
+        var allDomain = treaty.map(function(d) {return d[yName];} );
 
         var yDomain = allDomain.filter(function(elem, index, self) {
             return index === self.indexOf(elem);
@@ -102,7 +123,39 @@
 
         colorScale.domain(yDomain);
 
-         // Draw axes
+  ////////////////////////////////////////////////////////////// 
+  ///////////////////// Create Search Box ////////////////////// 
+  ////////////////////////////////////////////////////////////// 
+
+  //Create options - all the trials
+  var filterednodes = treaty.filter(function(d) {return d["countries"];
+});
+   var options = []
+   var arr = filterednodes.forEach(function(d) {
+    
+    d["countries"].forEach(function(m, i) { options.push(m);})
+    });
+
+  var nodupoptions = options.filter(function(elem, index, self) {
+            return index === self.indexOf(elem);
+             })
+  nodupoptions.sort();
+  nodupoptions.unshift("All");
+  
+  var select = document.getElementById("searchBox"); 
+  //Put new options into select box
+  for(var i = 0; i < nodupoptions.length; i++) {
+    var opt = nodupoptions[i];
+    var el = document.createElement("option");
+    el.textContent = opt;
+    el.value = opt;
+    select.appendChild(el);
+  }
+
+  //Create search combo box
+  $('.combobox').combobox();
+
+// Draw axes
          svg.append("g")
             .attr("class", "x axis")
             .attr("transform", "translate(0," + height + ")")
@@ -115,11 +168,16 @@
             .attr("x2", width)
             .attr("stroke-dasharray", "1, 2")
             .style("stroke", "lightgrey");
+
+          svg.selectAll(".x.axis, .y.axis")
+              .selectAll("text")
+              .style("font-size", width*0.02 + "px"); //To change the font size of texts
             
          // Draw bubbles
          svg.append("g").call(bubbleChart, treaty)
-            .attr("class", "bubbles")
+            .attr("class", "bubbles " )
           .selectAll(".node").append("circle")
+          .attr("class", function(d) {return d["countries"]} )
             .attr("r", rad + "px")
             .attr("fill", function(d) {return colorScale(d["Treaty Topic"]);})
             .attr("stroke", "#f6f6f6")
@@ -133,8 +191,8 @@
                           d["Latest Senate Action Date"] + "</span>";
 
                 tooltip.style("display", "inline-block")
-                        .style("left", (d3.event.pageX - 34) + "px")     
-                        .style("top", (d3.event.pageY +32) + "px")
+                        .style("left", (d3.event.pageX - 250) + "px")     
+                        .style("top", (d3.event.pageY + 15) + "px")
                         .html(html)
                       })
 
@@ -142,8 +200,76 @@
           d3.select(this).attr("r",rad+"px");
           tooltip.style("display","none");
         })
-            .on("click", function(d) {window.open(d["URL"]);});
+          .on("click", function(d) {window.open(d["URL"]);});
+
        });
+  //Function to call once the search box is filled in
+  window.searchEvent = function(country) { 
+
+if (country != "All") {
+    d3.selectAll("circle")
+    .style("opacity",function(d) {
+      if (d["countries"].includes(country) == true ) {return 1;}
+      else {return 0.051;}
+    })
+    .on("mouseover", function(d) {
+      if (d["countries"].includes(country) == true ) {
+      d3.select(this)
+      .attr("r",rad*2+"px");
+      var html = "<strong>" + d["Title"] + "</strong><br/>" +
+              "<span>Date Received From President: " + d["Date Received From President"]+ "</span><br/><br/>  Latest Senate Action: " +
+              d["Latest Senate Action"]+ "<br/><span> Latest Senate Action Date: " +
+              d["Latest Senate Action Date"] + "</span>";
+      tooltip.style("display", "inline-block")
+              .style("left", (d3.event.pageX - 250) + "px")     
+              .style("top", (d3.event.pageY + 15) + "px")
+              .html(html)
+            };
+            })
+    .on("mouseout",function(){
+          d3.select(this).attr("r",rad+"px");
+          tooltip.style("display","none");
+        })
+  }
+else {
+  d3.selectAll("circle")
+    .style("opacity",1)
+    .on("mouseover", function(d) {
+      d3.select(this)
+        .attr("r",rad*2+"px");
+          var html = "<strong>" + d["Title"] + "</strong><br/>" +
+                    "<span>Date Received From President: " + d["Date Received From President"]+ "</span><br/><br/>  Latest Senate Action: " +
+                    d["Latest Senate Action"]+ "<br/><span> Latest Senate Action Date: " +
+                    d["Latest Senate Action Date"] + "</span>";
+
+          tooltip.style("display", "inline-block")
+                  .style("left", (d3.event.pageX - 250) + "px")     
+                  .style("top", (d3.event.pageY + 15) + "px")
+                  .html(html)
+                })
+    .on("mouseout",function(){
+      d3.select(this).attr("r",rad+"px");
+      tooltip.style("display","none");
+      })
+
+  };
+}
+};
+
+var resizeId;
+d3.select(window)
+.on('resize', function() {
+    clearTimeout(resizeId);
+    resizeId = setTimeout(function() {
+        //console.log("resize event called");
+        currentFrame = 0;
+        d3.select("#searchBox").selectAll("option").remove();
+        d3.select(".combobox-container").remove();
+        d3.select("#dataviz").select("svg").remove().call(resize);
+
+  }, 500);
+})
+.call(resize);
      </script>
   </body>
 </html>
