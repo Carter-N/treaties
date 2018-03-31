@@ -1,6 +1,8 @@
 import json
 from itertools import chain
 import pycountry
+from urllib.request import Request, urlopen
+import re
 
 #Add names
 country_list = [country.name for country in list(pycountry.countries)]
@@ -29,35 +31,45 @@ country_list.remove('United States')
 
 with open('treaty.json') as json_data:
     treaties = json.load(json_data)
-    #print treaties[0]
+    
     count = 0
-    for treaty in treaties:
-        #print treaty['Title']
-        #if any(country_name in treaty['Title'] for country_name in country_list):
-        countries = []
-        for country_name in country_list:
-            country_lc = country_name.lower()
-            if country_lc in treaty['Title'].lower():
-                count+=1
-                countries.append(country_name)
-                #print country_name
-                #treaty.update({'countries', })
-            if country_name in alternate_names_of_countries:
-                for alternate_name in alternate_names_of_countries[country_name]:
-                    if alternate_name.lower() in treaty['Title'].lower():
-                        if country_name not in countries:
-                            countries.append(country_name)
-                            #print treaty['Title']
-                #if any(alternate_name.lower() in treaty['Title'].lower() for alternate_name in alternate_names_of_countries[country_name]):
-                #    print [alternate_name.lower() in treaty['Title'].lower() for alternate_name in alternate_names_of_countries[country_name] ]
-                #    print country_name
-        #print treaty['Title']        
-        #print countries  
-        if len(countries) == 0:
-            #print treaty['Title']  
-            pass  
+    for i in range(280, 285):
+        
+        treaty = treaties[i]
 
-        treaty['countries'] = countries     
-print(count) 
+        print("\nREADING TREATY: " + treaty["Title"])
+
+        #Get URL
+        url = treaty["URL"] + "/document-text?"
+        print("\trequest sent to:", url)
+        req = Request(url)
+        req.add_header("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36")
+        try:
+            resp = urlopen(req)
+        except:
+            print("COULDN'T FIND TEXT")
+
+        content = resp.read().decode("utf-8")
+
+        #Text document stored inbetween <pre></pre> tags
+        output = re.compile('<pre>(.*?)</pre>', re.DOTALL | re.IGNORECASE).findall(content)
+
+        #If match found
+        if output:
+            print("\ttreaty text found")
+            treaty_text = output[0]
+
+            countries = []
+            for country_name in country_list:
+                country_lc = country_name.lower()
+                if country_lc in treaty_text.lower():
+                    count += 1
+                    countries.append(country_name)
+                    print("\t\t...match found: " + country_name)  
+        else:
+            print("\t cound't find text")
+            #treaty['countries'] = countries     
+#print(count) 
+
 #with open('treaties_with_countries.json', 'w') as json_output_data:
 #    json.dump(treaties, json_output_data)
